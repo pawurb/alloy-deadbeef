@@ -2,7 +2,7 @@ use alloy::{
     eips::eip2718::Encodable2718,
     network::{EthereumWallet, TransactionBuilder},
     node_bindings::Anvil,
-    primitives::address,
+    primitives::{address, keccak256},
     providers::{Provider, ProviderBuilder},
     rpc::types::TransactionRequest,
     signers::local::PrivateKeySigner,
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
         // .wallet(wallet)
         .on_http(anvil.endpoint().parse()?);
 
-    let gas_price = provider.get_gas_price().await?;
+    let gas_price = anvil_provider.get_gas_price().await?;
     dbg!(gas_price);
     let nonce = anvil_provider.get_transaction_count(me).await?;
 
@@ -46,8 +46,17 @@ async fn main() -> Result<()> {
     let mut encoded_tx = vec![];
     tx_envelope.encode_2718(&mut encoded_tx);
 
-    let tx = provider.send_raw_transaction(&encoded_tx).await?;
-    dbg!(tx);
+    // let real_tx = provider.send_raw_transaction(&encoded_tx).await?;
+    // dbg!(real_tx);
+
+    // let anvil_receipt = anvil_provider
+    //     .send_raw_transaction(&encoded_tx)
+    //     .await?
+    //     .get_receipt()
+    //     .await?;
+    let encoded = keccak256(&encoded_tx);
+    dbg!(encoded);
+    // dbg!(anvil_receipt.transaction_hash);
 
     Ok(())
 }
