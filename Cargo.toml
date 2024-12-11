@@ -9,3 +9,12 @@ readme = "README.md"
 repository = "https://github.com/pawurb/alloy-deadbeef"
 
 [dependencies]
+
+alloy = { version = "0.6", features = ["full", "node-bindings"] }
+eyre = "0.6.12"
+tokio = { version = "1.40.0", features = ["full"] }
+
+
+[[example]]
+name = "revm_quoter"
+path = "src/revm_quoter.rs"
