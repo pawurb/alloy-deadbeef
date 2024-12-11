@@ -12,6 +12,7 @@ repository = "https://github.com/pawurb/alloy-deadbeef"
 
 alloy = { version = "0.6", features = ["full", "node-bindings"] }
 eyre = "0.6.12"
+hex = "0.4.3"
 tokio = { version = "1.40.0", features = ["full"] }
 
 

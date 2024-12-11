@@ -130,6 +130,7 @@ version = "0.0.1"
 dependencies = [
  "alloy",
  "eyre",
+ "hex",
  "tokio",
 ]
 
