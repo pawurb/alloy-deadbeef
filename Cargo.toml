@@ -10,10 +10,11 @@ repository = "https://github.com/pawurb/alloy-deadbeef"
 
 [dependencies]
 
-alloy = { version = "0.6", features = ["full", "node-bindings"] }
+alloy = { version = "0.6", features = ["full", "node-bindings", "json-rpc"] }
 eyre = "0.6.12"
 hex = "0.4.3"
 tokio = { version = "1.40.0", features = ["full"] }
+tower = "0.5.2"
 
 
 [[example]]

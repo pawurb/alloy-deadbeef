@@ -4,7 +4,7 @@ use alloy::{
     node_bindings::Anvil,
     primitives::{address, keccak256, Address, Bytes, B256, U256},
     providers::{Provider, ProviderBuilder},
-    rpc::types::TransactionRequest,
+    rpc::{client::ClientBuilder, types::TransactionRequest},
     signers::local::PrivateKeySigner,
     uint,
 };
@@ -12,7 +12,7 @@ use std::thread::available_parallelism;
 
 static ME: Address = address!("82F8f740fD0B74ccDC7404dEe96fE1c9A9B7445C");
 
-use alloy_deadbeef::GWEI_I;
+use alloy_deadbeef::{DeadbeefLayer, GWEI_I};
 use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,14 +24,39 @@ async fn main() -> Result<()> {
 
     let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
     let wallet = EthereumWallet::from(signer);
+    let client = ClientBuilder::default()
+        .layer(DeadbeefLayer)
+        .http(anvil.endpoint().parse()?);
+
     let anvil_provider = ProviderBuilder::new()
         .with_chain_id(42161)
-        // .wallet(wallet)
-        .on_http(anvil.endpoint().parse()?);
+        .on_client(client);
 
     let gas_price = anvil_provider.get_gas_price().await?;
-    dbg!(gas_price);
     let nonce = anvil_provider.get_transaction_count(ME).await?;
+
+    let tx = TransactionRequest {
+        from: Some(ME),
+        to: Some(ME.into()),
+        value: Some(U256::from(1)),
+        nonce: Some(nonce),
+        chain_id: Some(uint!(42161)),
+        max_fee_per_gas: Some(gas_price * 120 / 100),
+        max_priority_fee_per_gas: Some(GWEI_I),
+        gas: Some(210000),
+        ..Default::default()
+    };
+
+    let tx_envelope = tx.build(&wallet).await?;
+
+    let res = anvil_provider
+        .send_tx_envelope(tx_envelope)
+        .await?
+        .get_receipt()
+        .await?;
+    dbg!("done");
+
+    std::process::exit(1);
 
     let prefix = "deadbee".as_bytes();
     let max_cores: u128 = available_parallelism().unwrap().get() as u128;
