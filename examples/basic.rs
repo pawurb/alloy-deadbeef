@@ -33,20 +33,25 @@ async fn main() -> Result<()> {
     dbg!(gas_price);
     let nonce = anvil_provider.get_transaction_count(ME).await?;
 
-    let mut iter: u128 = 0;
-
-    let prefix = "deadbeef".as_bytes();
+    let prefix = "deadbee".as_bytes();
     let max_cores: u128 = available_parallelism().unwrap().get() as u128;
     dbg!(&max_cores);
 
-    let max_value = 16_u128.pow(8);
+    let max_value = 16_u128.pow(prefix.len() as u32);
+    dbg!(max_value);
 
     let mut handles = vec![];
     for i in 0..max_cores {
         let handle = tokio::spawn(async move {
-            search_tx_hash(i * max_value / max_cores, prefix, nonce, gas_price)
-                .await
-                .unwrap();
+            search_tx_hash(
+                i * max_value / max_cores,
+                prefix,
+                nonce,
+                gas_price,
+                &i.to_string(),
+            )
+            .await
+            .unwrap();
         });
         handles.push(handle);
     }
@@ -64,8 +69,10 @@ async fn search_tx_hash(
     prefix: &[u8],
     nonce: u64,
     gas_price: u128,
+    label: &str,
 ) -> Result<()> {
-    let mut iter = starting_input;
+    let mut iter = 0;
+    let mut value = starting_input;
     dbg!(starting_input);
     let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
     let wallet = EthereumWallet::from(signer);
@@ -73,7 +80,7 @@ async fn search_tx_hash(
         let tx = TransactionRequest {
             from: Some(ME),
             to: Some(ME.into()),
-            value: Some(U256::from(iter)),
+            value: Some(U256::from(value)),
             nonce: Some(nonce),
             chain_id: Some(uint!(42161)),
             max_fee_per_gas: Some(gas_price * 120 / 100),
@@ -87,10 +94,11 @@ async fn search_tx_hash(
         tx_envelope.encode_2718(&mut encoded_tx);
         let tx_hash = keccak256(&encoded_tx);
 
+        value += 1;
         iter += 1;
 
-        if iter % 100000 == 0 {
-            dbg!(iter);
+        if value % 1000000 == 0 {
+            dbg!(label, value, iter);
         }
 
         let hash_str = format!("{:x}", &tx_hash);
