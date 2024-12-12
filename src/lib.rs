@@ -1,64 +1,79 @@
 use alloy::{
+    eips::eip2718::Encodable2718,
+    network::{EthereumWallet, TransactionBuilder},
     node_bindings::Anvil,
-    primitives::U256,
+    primitives::{address, keccak256, Address, Bytes, B256, U256},
     providers::{Provider, ProviderBuilder},
-    rpc::{
-        client::ClientBuilder,
-        json_rpc::{RequestPacket, ResponsePacket},
-    },
-    transports::TransportError,
+    rpc::{client::ClientBuilder, types::TransactionRequest},
+    signers::local::PrivateKeySigner,
     uint,
 };
-
-use std::{
-    fmt::Debug,
-    future::{Future, IntoFuture},
-    pin::Pin,
-    task::{Context, Poll},
-};
+use eyre::Result;
+use std::thread::available_parallelism;
 
 pub static ONE_ETHER: U256 = uint!(1_000_000_000_000_000_000_U256);
 pub static GWEI: U256 = uint!(1_000_000_000_U256);
-
 pub static GWEI_I: u128 = 1_000_000_000;
-use tower::{Layer, Service};
 
-pub struct DeadbeefLayer;
+pub fn prefixed_tx(tx: TransactionRequest, prefix: &str) -> Result<TransactionRequest> {
+    let max_cores: u128 = available_parallelism().unwrap().get() as u128;
+    dbg!(&max_cores);
+    let max_value = 16_u128.pow(prefix.len() as u32);
 
-impl<S> Layer<S> for DeadbeefLayer {
-    type Service = DeadbeefService<S>;
+    let mut handles = vec![];
 
-    fn layer(&self, inner: S) -> Self::Service {
-        DeadbeefService { inner }
+    for i in 0..max_cores {
+        let tx = tx.clone();
+        let prefix = prefix.to_string();
+        let handle = tokio::spawn(async move {
+            search_tx_hash(tx, i * max_value / max_cores, prefix, &i.to_string())
+                .await
+                .unwrap();
+        });
+        handles.push(handle);
     }
+
+    todo!()
 }
 
-#[derive(Debug, Clone)]
-pub struct DeadbeefService<S> {
-    inner: S,
-}
+async fn search_tx_hash(
+    tx: TransactionRequest,
+    starting_input: u128,
+    prefix: String,
+    label: &str,
+) -> Result<()> {
+    let mut iter = 0;
+    let mut value = starting_input;
+    dbg!(starting_input);
+    let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
+    let wallet = EthereumWallet::from(signer);
+    let prefix = prefix.as_bytes();
 
-impl<S> Service<RequestPacket> for DeadbeefService<S>
-where
-    // Constraints on the service.
-    S: Service<RequestPacket, Response = ResponsePacket, Error = TransportError>,
-    S::Future: Send + 'static,
-    S::Response: Send + 'static + Debug,
-    S::Error: Send + 'static + Debug,
-{
-    type Response = S::Response;
-    type Error = S::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    loop {
+        let mut tx = tx.clone();
+        tx.value = Some(U256::from(value));
+        let tx_envelope = tx.build(&wallet).await?;
+        let mut encoded_tx = vec![];
+        tx_envelope.encode_2718(&mut encoded_tx);
+        let tx_hash = keccak256(&encoded_tx);
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+        value += 1;
+        iter += 1;
+
+        if value % 1000000 == 0 {
+            dbg!(label, value, iter);
+        }
+
+        let hash_str = format!("{:x}", &tx_hash);
+        let hash_prefix = &hash_str[..prefix.len()];
+        let first_hash_bytes = hash_prefix.as_bytes();
+        if first_hash_bytes == prefix {
+            dbg!("found");
+            dbg!(hash_str);
+            break;
+        }
     }
 
-    fn call(&mut self, req: RequestPacket) -> Self::Future {
-        println!("Request: {req:?}");
-
-        let fut = self.inner.call(req);
-
-        Box::pin(fut)
-    }
+    std::process::exit(0);
+    Ok(())
 }

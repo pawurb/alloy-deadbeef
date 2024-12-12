@@ -12,7 +12,7 @@ use std::thread::available_parallelism;
 
 static ME: Address = address!("82F8f740fD0B74ccDC7404dEe96fE1c9A9B7445C");
 
-use alloy_deadbeef::{DeadbeefLayer, GWEI_I};
+use alloy_deadbeef::{prefixed_tx, GWEI_I};
 use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,9 +24,7 @@ async fn main() -> Result<()> {
 
     let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
     let wallet = EthereumWallet::from(signer);
-    let client = ClientBuilder::default()
-        .layer(DeadbeefLayer)
-        .http(anvil.endpoint().parse()?);
+    let client = ClientBuilder::default().http(anvil.endpoint().parse()?);
 
     let anvil_provider = ProviderBuilder::new()
         .with_chain_id(42161)
@@ -56,95 +54,19 @@ async fn main() -> Result<()> {
         .await?;
     dbg!("done");
 
-    std::process::exit(1);
+    let tx = TransactionRequest {
+        from: Some(ME),
+        to: Some(ME.into()),
+        value: Some(U256::ZERO),
+        nonce: Some(nonce),
+        chain_id: Some(uint!(42161)),
+        max_fee_per_gas: Some(gas_price * 120 / 100),
+        max_priority_fee_per_gas: Some(GWEI_I),
+        gas: Some(210000),
+        ..Default::default()
+    };
 
-    let prefix = "deadbee".as_bytes();
-    let max_cores: u128 = available_parallelism().unwrap().get() as u128;
-    dbg!(&max_cores);
+    let res = prefixed_tx(tx, "dead")?;
 
-    let max_value = 16_u128.pow(prefix.len() as u32);
-    dbg!(max_value);
-
-    let mut handles = vec![];
-    for i in 0..max_cores {
-        let handle = tokio::spawn(async move {
-            search_tx_hash(
-                i * max_value / max_cores,
-                prefix,
-                nonce,
-                gas_price,
-                &i.to_string(),
-            )
-            .await
-            .unwrap();
-        });
-        handles.push(handle);
-    }
-    // dbg!(anvil_receipt.transaction_hash);
-
-    for handle in handles {
-        handle.await?;
-    }
-
-    Ok(())
-}
-
-async fn search_tx_hash(
-    starting_input: u128,
-    prefix: &[u8],
-    nonce: u64,
-    gas_price: u128,
-    label: &str,
-) -> Result<()> {
-    let mut iter = 0;
-    let mut value = starting_input;
-    dbg!(starting_input);
-    let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
-    let wallet = EthereumWallet::from(signer);
-    loop {
-        let tx = TransactionRequest {
-            from: Some(ME),
-            to: Some(ME.into()),
-            value: Some(U256::from(value)),
-            nonce: Some(nonce),
-            chain_id: Some(uint!(42161)),
-            max_fee_per_gas: Some(gas_price * 120 / 100),
-            max_priority_fee_per_gas: Some(GWEI_I),
-            gas: Some(210000),
-            ..Default::default()
-        };
-
-        let tx_envelope = tx.build(&wallet).await?;
-        let mut encoded_tx = vec![];
-        tx_envelope.encode_2718(&mut encoded_tx);
-        let tx_hash = keccak256(&encoded_tx);
-
-        value += 1;
-        iter += 1;
-
-        if value % 1000000 == 0 {
-            dbg!(label, value, iter);
-        }
-
-        let hash_str = format!("{:x}", &tx_hash);
-        let hash_prefix = &hash_str[..prefix.len()];
-        let first_hash_bytes = hash_prefix.as_bytes();
-        // let prefix_str = format!("{:x}", &prefix_bytes);
-
-        // dbg!(
-        //     &hash_str,
-        //     &prefix_str,
-        //     &prefix_bytes,
-        //     &first_hash_bytes,
-        //     &hash_prefix
-        // );
-        if first_hash_bytes == prefix.to_vec() {
-            dbg!("found");
-            dbg!(hash_str);
-            break;
-        }
-    }
-
-    std::process::exit(0);
     Ok(())
 }
