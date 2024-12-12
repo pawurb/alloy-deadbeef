@@ -37,8 +37,8 @@ async fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let res = prefixed_tx(tx, wallet, "deadd").await?;
-    dbg!(&res);
+    let res = prefixed_tx(tx, wallet, "dead").await?;
+    // dbg!(&res);
     dbg!("done");
 
     // let res = anvil_provider

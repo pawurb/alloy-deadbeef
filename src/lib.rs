@@ -6,8 +6,8 @@ use alloy::{
     uint,
 };
 use eyre::Result;
-use futures::future::select_all;
 use futures::future::{AbortHandle, Abortable, Aborted};
+use futures::{future::select_all, FutureExt};
 use std::{thread::available_parallelism, time::Duration};
 use tokio::{select, time::Instant};
 use tokio_util::sync::CancellationToken;
@@ -29,10 +29,9 @@ pub async fn prefixed_tx(
         .finish();
     _ = set_global_default(subscriber);
 
-    info!("Looking for '0x{prefix}' tx prefix");
-
     let max_cores: u128 = available_parallelism().unwrap().get() as u128;
-    dbg!(&max_cores);
+    info!("Looking for '0x{prefix}' tx hash prefix with {max_cores} CPU cores");
+
     let max_value = 16_u128.pow(prefix.len() as u32);
     let mut source_tx = tx.clone();
 
@@ -55,12 +54,6 @@ pub async fn prefixed_tx(
     let (value, _index, remaining) = select_all(handles).await;
 
     done.cancel();
-    // for handle in remaining {
-    //     dbg!("aborting");
-    //     handle.abort();
-    //     let _ = handle.await;
-    //     dbg!("awaited");
-    // }
 
     source_tx.value = value.unwrap();
 
@@ -80,6 +73,7 @@ async fn search_tx_hash(
     let result: Option<U256> = loop {
         // let start = measure_start("loop");
         select! {
+            biased;
             _ = done.cancelled() => {
               break None;
             }
