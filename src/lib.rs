@@ -18,7 +18,7 @@ use tokio::{select, time::Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::subscriber::set_global_default;
-use tracing_subscriber::{EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 pub static ONE_ETHER: U256 = uint!(1_000_000_000_000_000_000_U256);
 pub static GWEI: U256 = uint!(1_000_000_000_U256);
@@ -26,8 +26,9 @@ pub static GWEI_I: u128 = 1_000_000_000;
 
 #[derive(Clone, Debug, Default)]
 pub struct DeadbeefFiller {
-  wallet: EthereumWallet,
-};
+    pub wallet: EthereumWallet,
+    pub prefix: String,
+}
 
 #[derive(Debug)]
 pub struct TxValueFillable {
@@ -42,19 +43,28 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         FillerControlFlow::Ready
     }
     fn fill_sync(&self, _tx: &mut SendableTx<N>) {}
+
     async fn fill(
         &self,
         fillable: Self::Fillable,
         mut tx: SendableTx<N>,
     ) -> TransportResult<SendableTx<N>> {
         dbg!("fill");
-        dbg!(&fillable);
+        dbg!(&tx);
+
+        if let Some(builder) = tx.as_mut_builder() {
+            builder.set_value(fillable.value);
+            dbg!(&builder);
+        } else {
+            panic!("dupa");
+        }
+
         Ok(tx)
     }
 
     async fn prepare<P, T>(
         &self,
-        provider: &P,
+        _provider: &P,
         tx: &<N as Network>::TransactionRequest,
     ) -> TransportResult<Self::Fillable>
     where
@@ -62,13 +72,25 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         T: Transport + Clone,
     {
         dbg!("prepare");
-        let value = prefixed_tx_value(tx.clone().into(), provider.wallet().clone(), "dead")
+        dbg!(&tx);
+        let rpc_tx = TransactionRequest {
+            from: tx.from(),
+            to: Some(tx.to().into()),
+            value: tx.value(),
+            chain_id: tx.chain_id(),
+            nonce: tx.nonce(),
+            max_fee_per_gas: tx.max_fee_per_gas(),
+            max_priority_fee_per_gas: tx.max_priority_fee_per_gas(),
+            gas: tx.gas_limit(),
+            access_list: tx.access_list().cloned(),
+            ..Default::default()
+        };
+
+        let value = prefixed_tx_value(rpc_tx, self.wallet.clone(), &self.prefix)
             .await
             .unwrap();
-        dbg!(&tx);
-        Ok(TxValueFillable {
-            value: tx.value().unwrap_or_default(),
-        })
+
+        Ok(TxValueFillable { value })
     }
 }
 

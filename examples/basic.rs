@@ -24,7 +24,10 @@ async fn main() -> Result<()> {
     let anvil_provider = ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(wallet.clone())
-        .filler(DeadbeefFiller)
+        .filler(DeadbeefFiller {
+            wallet: wallet.clone(),
+            prefix: "dea".to_string(),
+        })
         .on_http(anvil.endpoint().parse()?);
 
     dbg!(anvil_provider.get_chain_id().await?);
@@ -44,16 +47,21 @@ async fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let res = prefixed_tx_value(tx, wallet, "dea").await?;
+    // let res = prefixed_tx_value(tx, wallet, "dea").await?;
     // dbg!(&res);
     dbg!("done");
 
     let res = anvil_provider
-        .send_transaction(res)
+        .send_transaction(tx)
         .await?
         .get_receipt()
         .await?;
-    dbg!(res.transaction_hash);
+    dbg!(&res);
+
+    let tx = anvil_provider
+        .get_transaction_by_hash(res.transaction_hash)
+        .await?;
+    dbg!(tx);
 
     Ok(())
 }
