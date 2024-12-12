@@ -25,29 +25,28 @@ async fn main() -> Result<()> {
         .wallet(wallet.clone())
         .on_http(anvil.endpoint().parse()?);
 
-    let gas_price = anvil_provider.get_gas_price().await?;
-    let nonce = anvil_provider.get_transaction_count(ME).await?;
-
     let tx = TransactionRequest {
         from: Some(ME),
         to: Some(ME.into()),
         value: Some(U256::ZERO),
-        nonce: Some(nonce),
-        chain_id: Some(chain_id),
-        max_fee_per_gas: Some(gas_price * 120 / 100),
+        nonce: Some(123),
+        chain_id: Some(1),
+        max_fee_per_gas: Some(100),
         max_priority_fee_per_gas: Some(GWEI_I),
         gas: Some(210000),
         ..Default::default()
     };
 
-    let res = prefixed_tx(tx, wallet, "dead").await?;
+    let res = prefixed_tx(tx, wallet, "deadd").await?;
+    dbg!(&res);
+    dbg!("done");
 
-    let res = anvil_provider
-        .send_transaction(res)
-        .await?
-        .get_receipt()
-        .await?;
-    dbg!(res.transaction_hash);
+    // let res = anvil_provider
+    //     .send_transaction(res)
+    //     .await?
+    //     .get_receipt()
+    //     .await?;
+    // dbg!(res.transaction_hash);
 
     Ok(())
 }

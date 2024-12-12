@@ -17,6 +17,9 @@ hex = "0.4.3"
 tokio = { version = "1.40.0", features = ["full"] }
 tower = "0.5.2"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio-util = "0.7.13"
 
 [[example]]
 name = "revm_quoter"
