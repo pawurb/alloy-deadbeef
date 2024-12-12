@@ -54,19 +54,23 @@ async fn main() -> Result<()> {
         .await?;
     dbg!("done");
 
+    let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
+    let wallet = EthereumWallet::from(signer);
+    let chain_id = provider.get_chain_id().await?;
+
     let tx = TransactionRequest {
         from: Some(ME),
         to: Some(ME.into()),
         value: Some(U256::ZERO),
         nonce: Some(nonce),
-        chain_id: Some(uint!(42161)),
+        chain_id: Some(chain_id),
         max_fee_per_gas: Some(gas_price * 120 / 100),
         max_priority_fee_per_gas: Some(GWEI_I),
         gas: Some(210000),
         ..Default::default()
     };
 
-    let res = prefixed_tx(tx, "dead")?;
+    let res = prefixed_tx(tx, wallet, "dead")?;
 
     Ok(())
 }

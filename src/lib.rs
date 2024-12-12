@@ -15,7 +15,11 @@ pub static ONE_ETHER: U256 = uint!(1_000_000_000_000_000_000_U256);
 pub static GWEI: U256 = uint!(1_000_000_000_U256);
 pub static GWEI_I: u128 = 1_000_000_000;
 
-pub fn prefixed_tx(tx: TransactionRequest, prefix: &str) -> Result<TransactionRequest> {
+pub fn prefixed_tx(
+    tx: TransactionRequest,
+    wallet: EthereumWallet,
+    prefix: &str,
+) -> Result<TransactionRequest> {
     let max_cores: u128 = available_parallelism().unwrap().get() as u128;
     dbg!(&max_cores);
     let max_value = 16_u128.pow(prefix.len() as u32);
@@ -25,10 +29,17 @@ pub fn prefixed_tx(tx: TransactionRequest, prefix: &str) -> Result<TransactionRe
     for i in 0..max_cores {
         let tx = tx.clone();
         let prefix = prefix.to_string();
+        let wallet = wallet.clone();
         let handle = tokio::spawn(async move {
-            search_tx_hash(tx, i * max_value / max_cores, prefix, &i.to_string())
-                .await
-                .unwrap();
+            search_tx_hash(
+                tx,
+                wallet,
+                i * max_value / max_cores,
+                prefix,
+                &i.to_string(),
+            )
+            .await
+            .unwrap();
         });
         handles.push(handle);
     }
@@ -38,6 +49,7 @@ pub fn prefixed_tx(tx: TransactionRequest, prefix: &str) -> Result<TransactionRe
 
 async fn search_tx_hash(
     tx: TransactionRequest,
+    wallet: EthereumWallet,
     starting_input: u128,
     prefix: String,
     label: &str,
@@ -45,13 +57,12 @@ async fn search_tx_hash(
     let mut iter = 0;
     let mut value = starting_input;
     dbg!(starting_input);
-    let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
-    let wallet = EthereumWallet::from(signer);
     let prefix = prefix.as_bytes();
 
     loop {
         let mut tx = tx.clone();
-        tx.value = Some(U256::from(value));
+        let next_value = tx.value.unwrap_or_default() + U256::from(value);
+        tx.value = Some(next_value);
         let tx_envelope = tx.build(&wallet).await?;
         let mut encoded_tx = vec![];
         tx_envelope.encode_2718(&mut encoded_tx);
