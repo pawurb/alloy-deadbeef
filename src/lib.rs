@@ -1,21 +1,24 @@
 use alloy::{
     eips::eip2718::Encodable2718,
     network::{EthereumWallet, TransactionBuilder},
-    node_bindings::Anvil,
-    primitives::{address, keccak256, Address, Bytes, B256, U256},
-    providers::{Provider, ProviderBuilder},
-    rpc::{client::ClientBuilder, types::TransactionRequest},
-    signers::local::PrivateKeySigner,
+    primitives::{keccak256, FixedBytes, U256},
+    rpc::types::TransactionRequest,
     uint,
 };
 use eyre::Result;
-use std::thread::available_parallelism;
+use std::{sync::Arc, thread::available_parallelism};
+use tokio::sync::Notify;
 
 pub static ONE_ETHER: U256 = uint!(1_000_000_000_000_000_000_U256);
 pub static GWEI: U256 = uint!(1_000_000_000_U256);
 pub static GWEI_I: u128 = 1_000_000_000;
 
-pub fn prefixed_tx(
+pub struct PrefixResult {
+    pub tx: Option<TransactionRequest>,
+    pub iterations: u128,
+}
+
+pub async fn prefixed_tx(
     tx: TransactionRequest,
     wallet: EthereumWallet,
     prefix: &str,
@@ -26,10 +29,12 @@ pub fn prefixed_tx(
 
     let mut handles = vec![];
 
+    let done = Arc::new(Notify::new());
     for i in 0..max_cores {
         let tx = tx.clone();
         let prefix = prefix.to_string();
         let wallet = wallet.clone();
+        let done = done.clone();
         let handle = tokio::spawn(async move {
             search_tx_hash(
                 tx,
@@ -37,11 +42,16 @@ pub fn prefixed_tx(
                 i * max_value / max_cores,
                 prefix,
                 &i.to_string(),
+                done,
             )
             .await
-            .unwrap();
+            .unwrap()
         });
         handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.await.unwrap();
     }
 
     todo!()
@@ -53,38 +63,55 @@ async fn search_tx_hash(
     starting_input: u128,
     prefix: String,
     label: &str,
-) -> Result<()> {
+    done: Arc<Notify>,
+) -> Result<Option<FixedBytes<32>>> {
     let mut iter = 0;
     let mut value = starting_input;
-    dbg!(starting_input);
     let prefix = prefix.as_bytes();
 
-    loop {
-        let mut tx = tx.clone();
-        let next_value = tx.value.unwrap_or_default() + U256::from(value);
-        tx.value = Some(next_value);
-        let tx_envelope = tx.build(&wallet).await?;
-        let mut encoded_tx = vec![];
-        tx_envelope.encode_2718(&mut encoded_tx);
-        let tx_hash = keccak256(&encoded_tx);
+    let tx_hash: Option<FixedBytes<32>> = loop {
+        tokio::select! {
+            _ = done.notified() => {
+                break None;
+            }
+            else => {
+              let tx = tx.clone();
+              let next_value = tx.value.unwrap_or_default() + U256::from(value);
+              let tx_hash = calculate_hash(tx, &wallet, next_value).await?;
 
-        value += 1;
-        iter += 1;
+              value += 1;
+              iter += 1;
 
-        if value % 1000000 == 0 {
-            dbg!(label, value, iter);
+              if value % 10000 == 0 {
+                  dbg!(label, value, iter);
+              }
+
+              let hash_str = format!("{:x}", &tx_hash);
+              let hash_prefix = &hash_str[..prefix.len()];
+              let first_hash_bytes = hash_prefix.as_bytes();
+              if first_hash_bytes == prefix {
+                  dbg!("found");
+                  dbg!(hash_str);
+                  done.notify_one();
+                  break Some(tx_hash);
+              }
+            }
         }
+    };
 
-        let hash_str = format!("{:x}", &tx_hash);
-        let hash_prefix = &hash_str[..prefix.len()];
-        let first_hash_bytes = hash_prefix.as_bytes();
-        if first_hash_bytes == prefix {
-            dbg!("found");
-            dbg!(hash_str);
-            break;
-        }
-    }
+    Ok(tx_hash)
+}
 
-    std::process::exit(0);
-    Ok(())
+async fn calculate_hash(
+    tx: TransactionRequest,
+    wallet: &EthereumWallet,
+    value: U256,
+) -> Result<FixedBytes<32>> {
+    let mut tx = tx;
+    tx.value = Some(value);
+    let tx_envelope = tx.build(&wallet).await?;
+    let mut encoded_tx = vec![];
+    tx_envelope.encode_2718(&mut encoded_tx);
+    let tx_hash = keccak256(&encoded_tx);
+    Ok(tx_hash)
 }
