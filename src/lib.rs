@@ -1,8 +1,13 @@
 use alloy::{
     eips::eip2718::Encodable2718,
-    network::{EthereumWallet, TransactionBuilder},
+    network::{EthereumWallet, Network, TransactionBuilder},
     primitives::{keccak256, FixedBytes, U256},
+    providers::{
+        fillers::{FillerControlFlow, TxFiller},
+        Provider, SendableTx,
+    },
     rpc::types::TransactionRequest,
+    transports::{Transport, TransportResult},
     uint,
 };
 use eyre::Result;
@@ -13,17 +18,65 @@ use tokio::{select, time::Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::subscriber::set_global_default;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter};
 
 pub static ONE_ETHER: U256 = uint!(1_000_000_000_000_000_000_U256);
 pub static GWEI: U256 = uint!(1_000_000_000_U256);
 pub static GWEI_I: u128 = 1_000_000_000;
 
-pub async fn prefixed_tx(
+#[derive(Clone, Debug, Default)]
+pub struct DeadbeefFiller {
+  wallet: EthereumWallet,
+};
+
+#[derive(Debug)]
+pub struct TxValueFillable {
+    value: U256,
+}
+
+impl<N: Network> TxFiller<N> for DeadbeefFiller {
+    type Fillable = TxValueFillable;
+
+    fn status(&self, _tx: &<N as Network>::TransactionRequest) -> FillerControlFlow {
+        dbg!("status");
+        FillerControlFlow::Ready
+    }
+    fn fill_sync(&self, _tx: &mut SendableTx<N>) {}
+    async fn fill(
+        &self,
+        fillable: Self::Fillable,
+        mut tx: SendableTx<N>,
+    ) -> TransportResult<SendableTx<N>> {
+        dbg!("fill");
+        dbg!(&fillable);
+        Ok(tx)
+    }
+
+    async fn prepare<P, T>(
+        &self,
+        provider: &P,
+        tx: &<N as Network>::TransactionRequest,
+    ) -> TransportResult<Self::Fillable>
+    where
+        P: Provider<T, N>,
+        T: Transport + Clone,
+    {
+        dbg!("prepare");
+        let value = prefixed_tx_value(tx.clone().into(), provider.wallet().clone(), "dead")
+            .await
+            .unwrap();
+        dbg!(&tx);
+        Ok(TxValueFillable {
+            value: tx.value().unwrap_or_default(),
+        })
+    }
+}
+
+pub async fn prefixed_tx_value(
     tx: TransactionRequest,
     wallet: EthereumWallet,
     prefix: &str,
-) -> Result<TransactionRequest> {
+) -> Result<U256> {
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .finish();
@@ -51,13 +104,11 @@ pub async fn prefixed_tx(
         handles.push(handle);
     }
 
-    let (value, _index, remaining) = select_all(handles).await;
+    let (value, _index, _remaining) = select_all(handles).await;
 
     done.cancel();
 
-    source_tx.value = value.unwrap();
-
-    Ok(source_tx)
+    Ok(value.unwrap().unwrap())
 }
 
 async fn search_tx_hash(

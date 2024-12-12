@@ -1,4 +1,4 @@
-use alloy_deadbeef::prefixed_tx;
+use alloy_deadbeef::prefixed_tx_value;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use alloy::{
@@ -33,7 +33,7 @@ fn beef_benchmark(c: &mut Criterion) {
 
     c.bench_function("Find '0xbeef'", |b| {
         b.to_async(&runtime)
-            .iter(|| prefixed_tx(tx.clone(), wallet.clone(), "beef"))
+            .iter(|| prefixed_tx_value(tx.clone(), wallet.clone(), "beef"))
     });
 }
 
