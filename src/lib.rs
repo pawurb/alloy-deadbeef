@@ -49,14 +49,9 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         fillable: Self::Fillable,
         mut tx: SendableTx<N>,
     ) -> TransportResult<SendableTx<N>> {
-        dbg!("fill");
-        dbg!(&tx);
-
         if let Some(builder) = tx.as_mut_builder() {
             builder.set_value(fillable.value);
             dbg!(&builder);
-        } else {
-            panic!("dupa");
         }
 
         Ok(tx)
@@ -71,8 +66,6 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         P: Provider<T, N>,
         T: Transport + Clone,
     {
-        dbg!("prepare");
-        dbg!(&tx);
         let rpc_tx = TransactionRequest {
             from: tx.from(),
             to: Some(tx.to().into()),

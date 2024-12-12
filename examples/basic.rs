@@ -22,12 +22,11 @@ async fn main() -> Result<()> {
     let chain_id = provider.get_chain_id().await?;
 
     let anvil_provider = ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(wallet.clone())
         .filler(DeadbeefFiller {
             wallet: wallet.clone(),
-            prefix: "dea".to_string(),
+            prefix: "dead".to_string(),
         })
+        .wallet(wallet.clone())
         .on_http(anvil.endpoint().parse()?);
 
     dbg!(anvil_provider.get_chain_id().await?);
@@ -56,12 +55,7 @@ async fn main() -> Result<()> {
         .await?
         .get_receipt()
         .await?;
-    dbg!(&res);
-
-    let tx = anvil_provider
-        .get_transaction_by_hash(res.transaction_hash)
-        .await?;
-    dbg!(tx);
+    dbg!(&res.transaction_hash);
 
     Ok(())
 }
