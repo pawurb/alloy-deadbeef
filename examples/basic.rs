@@ -7,7 +7,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 
-static ME: Address = address!("82F8f740fD0B74ccDC7404dEe96fE1c9A9B7445C");
+static ME: Address = address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 
 use alloy_deadbeef::{prefixed_tx, GWEI_I};
 use eyre::Result;

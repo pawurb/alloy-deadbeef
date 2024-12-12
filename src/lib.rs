@@ -62,7 +62,6 @@ async fn search_tx_hash(
 
     let result: Option<U256> = loop {
         if *done_guard.lock().await {
-            dbg!("break");
             break None;
         }
         let tx = tx.clone();
