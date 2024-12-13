@@ -3,6 +3,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use alloy::{
     network::EthereumWallet,
+    node_bindings::Anvil,
     primitives::{address, Address, U256},
     rpc::types::TransactionRequest,
     signers::local::PrivateKeySigner,
@@ -10,18 +11,16 @@ use alloy::{
 
 use tokio::runtime::Builder;
 
-static ME: Address = address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-static PK: &str = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-
 fn beef_benchmark(c: &mut Criterion) {
+    let anvil = Anvil::new().spawn();
     let runtime = Builder::new_multi_thread().enable_all().build().unwrap();
-
-    let signer: PrivateKeySigner = PK.parse().unwrap();
-    let wallet = EthereumWallet::from(signer);
+    let account = anvil.addresses()[0];
+    let private_key = anvil.keys()[0].clone();
+    let wallet = EthereumWallet::from(PrivateKeySigner::from(private_key));
 
     let tx = TransactionRequest {
-        from: Some(ME),
-        to: Some(ME.into()),
+        from: Some(account),
+        to: Some(account.into()),
         value: Some(U256::ZERO),
         nonce: Some(123),
         chain_id: Some(1),

@@ -29,8 +29,6 @@ async fn main() -> Result<()> {
         .wallet(wallet.clone())
         .on_http(anvil.endpoint().parse()?);
 
-    dbg!(anvil_provider.get_chain_id().await?);
-
     let nonce = anvil_provider.get_transaction_count(ME).await?;
     let gas_price = anvil_provider.get_gas_price().await?;
 
@@ -48,7 +46,6 @@ async fn main() -> Result<()> {
 
     // let res = prefixed_tx_value(tx, wallet, "dea").await?;
     // dbg!(&res);
-    dbg!("done");
 
     let res = anvil_provider
         .send_transaction(tx)

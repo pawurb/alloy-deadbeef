@@ -14,6 +14,7 @@ use eyre::Result;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::{future::select_all, FutureExt};
 use std::{thread::available_parallelism, time::Duration};
+use tokio::sync::Notify;
 use tokio::{select, time::Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -50,7 +51,6 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
     ) -> TransportResult<SendableTx<N>> {
         if let Some(builder) = tx.as_mut_builder() {
             builder.set_value(fillable.value);
-            dbg!(&builder);
         }
 
         Ok(tx)
@@ -101,6 +101,7 @@ pub async fn prefixed_tx_value(
 
     let max_value = 16_u128.pow(prefix.len() as u32);
     let mut handles = vec![];
+    // let done = CancellationToken::new();
     let done = CancellationToken::new();
 
     for i in 0..max_cores {
@@ -138,6 +139,7 @@ async fn search_tx_hash(
         select! {
             biased;
             _ = done.cancelled() => {
+                dbg!("break");
               break None;
             }
             _ = futures::future::ready(1) => {
@@ -193,7 +195,7 @@ mod tests {
     use alloy::{
         network::EthereumWallet,
         node_bindings::Anvil,
-        primitives::{address, Address, U256},
+        primitives::U256,
         providers::{Provider, ProviderBuilder},
         rpc::types::TransactionRequest,
         signers::local::PrivateKeySigner,
