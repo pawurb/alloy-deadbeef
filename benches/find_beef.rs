@@ -2,11 +2,8 @@ use alloy_deadbeef::prefixed_tx_value;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use alloy::{
-    network::EthereumWallet,
-    node_bindings::Anvil,
-    primitives::{address, Address, U256},
-    rpc::types::TransactionRequest,
-    signers::local::PrivateKeySigner,
+    network::EthereumWallet, node_bindings::Anvil, primitives::U256,
+    rpc::types::TransactionRequest, signers::local::PrivateKeySigner,
 };
 
 use tokio::runtime::Builder;

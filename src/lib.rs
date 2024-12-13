@@ -135,11 +135,9 @@ async fn search_tx_hash(
     let prefix = prefix.as_bytes();
 
     let result: Option<U256> = loop {
-        let start = measure_start("loop");
         select! {
             biased;
             _ = done.cancelled() => {
-                dbg!("break");
               break None;
             }
             _ = futures::future::ready(1) => {

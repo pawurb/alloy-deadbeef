@@ -1,25 +1,20 @@
 use alloy::{
     network::EthereumWallet,
     node_bindings::Anvil,
-    primitives::{address, Address, U256},
+    primitives::U256,
     providers::{Provider, ProviderBuilder},
     rpc::types::TransactionRequest,
     signers::local::PrivateKeySigner,
 };
 
-static ME: Address = address!("f39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-
 use alloy_deadbeef::{prefixed_tx_value, DeadbeefFiller, GWEI_I};
 use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
-    let rpc = std::env::var("RPC_URL").unwrap();
-    let provider = ProviderBuilder::new().on_http(rpc.parse()?);
-
-    let anvil = Anvil::new().fork(rpc).spawn();
-    let signer: PrivateKeySigner = std::env::var("PRIVATE_KEY")?.parse()?;
-    let wallet = EthereumWallet::from(signer);
-    let chain_id = provider.get_chain_id().await?;
+    let anvil = Anvil::new().spawn();
+    let account = anvil.addresses()[0];
+    let private_key = anvil.keys()[0].clone();
+    let wallet = EthereumWallet::from(PrivateKeySigner::from(private_key));
 
     let anvil_provider = ProviderBuilder::new()
         .filler(DeadbeefFiller {
@@ -29,12 +24,14 @@ async fn main() -> Result<()> {
         .wallet(wallet.clone())
         .on_http(anvil.endpoint().parse()?);
 
-    let nonce = anvil_provider.get_transaction_count(ME).await?;
+    let chain_id = anvil_provider.get_chain_id().await?;
+
+    let nonce = anvil_provider.get_transaction_count(account).await?;
     let gas_price = anvil_provider.get_gas_price().await?;
 
     let tx = TransactionRequest {
-        from: Some(ME),
-        to: Some(ME.into()),
+        from: Some(account),
+        to: Some(account.into()),
         value: Some(U256::ZERO),
         chain_id: Some(chain_id),
         nonce: Some(nonce),
@@ -43,9 +40,6 @@ async fn main() -> Result<()> {
         gas: Some(210000),
         ..Default::default()
     };
-
-    // let res = prefixed_tx_value(tx, wallet, "dea").await?;
-    // dbg!(&res);
 
     let res = anvil_provider
         .send_transaction(tx)
