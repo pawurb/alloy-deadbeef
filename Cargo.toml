@@ -22,8 +22,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio-util = "0.7.13"
 
 [[example]]
-name = "revm_quoter"
-path = "src/revm_quoter.rs"
+name = "basic"
+path = "examples/basic.rs"
 
 [[bench]]
 name = "find_beef"
