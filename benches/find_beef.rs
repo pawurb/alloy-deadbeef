@@ -1,4 +1,4 @@
-use alloy_deadbeef::prefixed_tx_value;
+use alloy_deadbeef::{prefixed_tx_value_mutex, prefixed_tx_value_token};
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use alloy::{
@@ -27,9 +27,16 @@ fn beef_benchmark(c: &mut Criterion) {
         ..Default::default()
     };
 
-    c.bench_function("Find '0xbeef'", |b| {
+    let mut group = c.benchmark_group("Find '0xbeef'");
+
+    group.bench_function("token", |b| {
         b.to_async(&runtime)
-            .iter(|| prefixed_tx_value(tx.clone(), wallet.clone(), "beef"))
+            .iter(|| prefixed_tx_value_token(tx.clone(), wallet.clone(), "beef"))
+    });
+
+    group.bench_function("mutex", |b| {
+        b.to_async(&runtime)
+            .iter(|| prefixed_tx_value_mutex(tx.clone(), wallet.clone(), "beef"))
     });
 }
 

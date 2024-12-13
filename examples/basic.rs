@@ -7,7 +7,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 
-use alloy_deadbeef::{prefixed_tx_value, DeadbeefFiller, GWEI_I};
+use alloy_deadbeef::{prefixed_tx_value_token, DeadbeefFiller, GWEI_I};
 use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {

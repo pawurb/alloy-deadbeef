@@ -13,8 +13,8 @@ use alloy::{
 use eyre::Result;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::{future::select_all, FutureExt};
-use std::{thread::available_parallelism, time::Duration};
-use tokio::sync::Notify;
+use std::{sync::Arc, thread::available_parallelism, time::Duration};
+use tokio::sync::{Mutex, Notify};
 use tokio::{select, time::Instant};
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -78,7 +78,7 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
             ..Default::default()
         };
 
-        let value = prefixed_tx_value(rpc_tx, self.wallet.clone(), &self.prefix)
+        let value = prefixed_tx_value_token(rpc_tx, self.wallet.clone(), &self.prefix)
             .await
             .unwrap();
 
@@ -86,7 +86,7 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
     }
 }
 
-pub async fn prefixed_tx_value(
+pub async fn prefixed_tx_value_token(
     tx: TransactionRequest,
     wallet: EthereumWallet,
     prefix: &str,
@@ -110,7 +110,7 @@ pub async fn prefixed_tx_value(
         let wallet = wallet.clone();
         let done = done.clone();
         let handle = tokio::spawn(async move {
-            search_tx_hash(tx, wallet, done, i * max_value / max_cores, prefix)
+            search_tx_hash_token(tx, wallet, done, i * max_value / max_cores, prefix)
                 .await
                 .unwrap()
         });
@@ -124,7 +124,7 @@ pub async fn prefixed_tx_value(
     Ok(value.unwrap().unwrap())
 }
 
-async fn search_tx_hash(
+async fn search_tx_hash_token(
     tx: TransactionRequest,
     wallet: EthereumWallet,
     done: CancellationToken,
@@ -156,6 +156,85 @@ async fn search_tx_hash(
                 }
             }
         }
+        // measure_end(start);
+    };
+
+    Ok(result)
+}
+
+pub async fn prefixed_tx_value_mutex(
+    tx: TransactionRequest,
+    wallet: EthereumWallet,
+    prefix: &str,
+) -> Result<U256> {
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .finish();
+    _ = set_global_default(subscriber);
+
+    let max_cores: u128 = available_parallelism().unwrap().get() as u128;
+    info!("Looking for '0x{prefix}' tx hash prefix with {max_cores} CPU cores");
+
+    let max_value = 16_u128.pow(prefix.len() as u32);
+    let mut handles = vec![];
+    // let done = CancellationToken::new();
+    let done = Arc::new(Mutex::new(false));
+
+    for i in 0..max_cores {
+        let tx = tx.clone();
+        let prefix = prefix.to_string();
+        let wallet = wallet.clone();
+        let done = done.clone();
+        let handle = tokio::spawn(async move {
+            search_tx_hash_mutex(tx, wallet, done, i * max_value / max_cores, prefix)
+                .await
+                .unwrap()
+        });
+        handles.push(handle);
+    }
+
+    let (value, _index, _remaining) = select_all(handles).await;
+
+    *done.lock().await = true;
+
+    Ok(value.unwrap().unwrap())
+}
+
+async fn search_tx_hash_mutex(
+    tx: TransactionRequest,
+    wallet: EthereumWallet,
+    done: Arc<Mutex<bool>>,
+    starting_input: u128,
+    prefix: String,
+) -> Result<Option<U256>> {
+    let mut value = starting_input;
+    let prefix = prefix.as_bytes();
+
+    let result: Option<U256> = loop {
+        // select! {
+        //     biased;
+        let is_done = done.lock().await;
+        if *is_done {
+            break None;
+        }
+        drop(is_done);
+
+        // _ = futures::future::ready(1) => {
+        let tx = tx.clone();
+        let next_value = tx.value.unwrap_or_default() + U256::from(value);
+        let tx_hash = calculate_hash(tx, &wallet, next_value).await?;
+
+        value += 1;
+
+        let hash_str = format!("{:x}", &tx_hash);
+        let hash_prefix = &hash_str[..prefix.len()];
+        let first_hash_bytes = hash_prefix.as_bytes();
+        if first_hash_bytes == prefix {
+            info!("Found matching tx hash: {tx_hash}");
+            break Some(next_value);
+        }
+        // }
+        // }
         // measure_end(start);
     };
 
