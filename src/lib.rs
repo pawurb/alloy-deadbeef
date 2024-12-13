@@ -134,28 +134,28 @@ async fn search_tx_hash(
     let prefix = prefix.as_bytes();
 
     let result: Option<U256> = loop {
-        // let start = measure_start("loop");
-        // select! {
-        //     biased;
-        //     _ = done.cancelled() => {
-        //       break None;
-        //     }
-        //     _ = futures::future::ready(1) => {
-        let tx = tx.clone();
-        let next_value = tx.value.unwrap_or_default() + U256::from(value);
-        let tx_hash = calculate_hash(tx, &wallet, next_value).await?;
+        let start = measure_start("loop");
+        select! {
+            biased;
+            _ = done.cancelled() => {
+              break None;
+            }
+            _ = futures::future::ready(1) => {
+                let tx = tx.clone();
+                let next_value = tx.value.unwrap_or_default() + U256::from(value);
+                let tx_hash = calculate_hash(tx, &wallet, next_value).await?;
 
-        value += 1;
+                value += 1;
 
-        let hash_str = format!("{:x}", &tx_hash);
-        let hash_prefix = &hash_str[..prefix.len()];
-        let first_hash_bytes = hash_prefix.as_bytes();
-        if first_hash_bytes == prefix {
-            info!("Found matching tx hash: {tx_hash}");
-            break Some(next_value);
+                let hash_str = format!("{:x}", &tx_hash);
+                let hash_prefix = &hash_str[..prefix.len()];
+                let first_hash_bytes = hash_prefix.as_bytes();
+                if first_hash_bytes == prefix {
+                    info!("Found matching tx hash: {tx_hash}");
+                    break Some(next_value);
+                }
+            }
         }
-        //     }
-        // }
         // measure_end(start);
     };
 
@@ -199,7 +199,7 @@ mod tests {
         signers::local::PrivateKeySigner,
     };
 
-    const TX_PREFIX: &str = "de";
+    const TX_PREFIX: &str = "d";
 
     #[tokio::test]
     async fn test_prefixed_tx_value() -> Result<()> {
@@ -237,14 +237,13 @@ mod tests {
             .await?
             .get_receipt()
             .await?;
-        dbg!(&res.transaction_hash);
 
         let tx_hash = res.transaction_hash;
         let tx_hash = format!("{:x}", &tx_hash);
         let tx_prefix = &tx_hash[..TX_PREFIX.len()];
 
-        assert_eq!(tx_prefix.as_bytes(), "de".as_bytes());
-        // let signer: Private
+        assert_eq!(tx_prefix.as_bytes(), "d".as_bytes());
+
         Ok(())
     }
 }
