@@ -1,0 +1,41 @@
+[package]
+name = "alloy-deadbeef"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pawel Urbanek <contact@pawelurbanek.com>"]
+description = "Brute-force vanity tx prefixes using Alloy"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/pawurb/alloy-deadbeef"
+
+[dependencies]
+
+alloy = { version = "0.6", features = ["full", "node-bindings", "json-rpc"] }
+eyre = "0.6.12"
+futures = "0.3.31"
+tokio = { version = "1.40.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["async_tokio"] }
+
+[[example]]
+name = "send_vanity_tx"
+path = "examples/send_vanity_tx.rs"
+
+[[example]]
+name = "generate_vanity_tx"
+path = "examples/generate_vanity_tx.rs"
+
+[[example]]
+name = "alloy_vanity_tx"
+path = "examples/alloy_vanity_tx.rs"
+
+[[example]]
+name = "vanity_weth_approve"
+path = "examples/vanity_weth_approve.rs"
+
+[[bench]]
+name = "find_bee"
+harness = false
