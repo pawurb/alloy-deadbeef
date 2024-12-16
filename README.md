@@ -1,10 +1,10 @@
-# alloy-deadbeef
+# alloy-deadbeef [![Latest Version](https://img.shields.io/crates/v/alloy-deadbeef.svg)](https://crates.io/crates/alloy-deadbeef) [![GH Actions](https://github.com/pawurb/alloy-deadbeef/actions/workflows/ci.yml/badge.svg)](https://github.com/pawurb/alloy-deadbeef/actions)
 
 This crate allows to generate custom, vanity tx hash prefixes:
 
 ![Vanity tx](https://github.com/pawurb/alloy-deadbeef/raw/main/deadbeef-tx-etherscan.png)
 
-It brute-forces the correct hash iterating on `gas_limit` or `value` fields until it finds a matching prefix. You can read more about the implemenation details [in this blog post](https://pawelurbanek.com/alloy-deadbeef-vanity).
+It brute-forces the correct hash iterating on `gas_limit` or `value` fields until it finds a matching prefix. You can read more about the implementation [in this blog post](https://pawelurbanek.com/alloy-deadbeef-vanity).
 
 ## Usage
 
@@ -24,9 +24,9 @@ let provider = ProviderBuilder::new()
     .on_http(endpoint().parse()?);
 ```
 
-All the transactions sent from this provider will land with a `0xbeef` prefix. If you combine it with other fillers, it has to be last one, otherwise hash calculations will be invalid.
+All the transactions sent from this provider will land with a `0xbeef` prefix. If you combine it with other fillers, it has to be the last one. Otherwise hash calculations will be invalid.
 
-Alternatively you can generate a tx object that, once-submitted will have a matching hash prefix:
+Alternatively, you can generate a tx object that, once submitted will have a matching hash prefix:
 
 ```rust
 let tx = TransactionRequest {
@@ -54,7 +54,7 @@ let provider = ProviderBuilder::new()
     .await?;
 ```
 
-For prefixes up to 4 characters it's possible to send `non payable` transaction, because we're iterating on `gas_limit` instead of `value`. [See this example](https://github.com/pawurb/alloy-deadbeef/blob/main/examples/vanity_weth_approve.rs) for details on how to do it.
+For prefixes up to 4 characters, it's possible to send `nonpayable` transactions because we're iterating on `gas_limit` instead of `value`. [See this example](https://github.com/pawurb/alloy-deadbeef/blob/main/examples/vanity_weth_approve.rs) for details on how to do it.
 
 Alternatively, you can force a specific iteration mode like this:
 
@@ -65,7 +65,7 @@ deadbeef.set_iteration_mode(IterationMode::Value);
 
 ## Processing time
 
-The table shows the worst case scenario processing times on MBP M2 with 12 CPU cores. [Check out the blog post](https://pawelurbanek.com/alloy-deadbeef-vanity) for more details.
+The table shows the worst-case scenario processing times on MBP M2 with 12 CPU cores. [Check out the blog post](https://pawelurbanek.com/alloy-deadbeef-vanity) for more details.
 
 <table>
   <tr>

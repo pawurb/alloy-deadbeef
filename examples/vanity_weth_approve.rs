@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
         .on_http(anvil.endpoint().parse()?);
 
     let approve_input = WETH::approveCall {
-        spender: WETH_ADDR,
-        amount: U256::MAX.div(U256::from(2)),
+        spender: account,
+        amount: U256::MAX.div(U256::from(0)),
     }
     .abi_encode();
 
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
 
     let tx = TransactionRequest {
         from: Some(account),
-        to: Some(account.into()),
+        to: Some(WETH_ADDR.into()),
         value: Some(U256::ZERO),
         chain_id: Some(chain_id),
         input: approve_input.into(),
