@@ -7,7 +7,7 @@ use alloy::{
         Provider, SendableTx,
     },
     rpc::types::{TransactionInput, TransactionRequest},
-    transports::{Transport, TransportResult},
+    transports::TransportResult,
     uint,
 };
 use eyre::Result;
@@ -86,14 +86,13 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         Ok(tx)
     }
 
-    async fn prepare<P, T>(
+    async fn prepare<P>(
         &self,
         _provider: &P,
         tx: &<N as Network>::TransactionRequest,
     ) -> TransportResult<Self::Fillable>
     where
-        P: Provider<T, N>,
-        T: Transport + Clone,
+        P: Provider<N>,
     {
         let input = TransactionInput::new(tx.input().unwrap_or_default().clone());
         let rpc_tx = TransactionRequest {
@@ -334,7 +333,6 @@ fn max_iterations_for_prefix(prefix_length: u32) -> u128 {
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
     use alloy::{
@@ -405,7 +403,6 @@ mod tests {
         deadbeef.set_iteration_mode(IterationMode::Gas);
 
         let anvil_provider = ProviderBuilder::new()
-            .fetch_chain_id()
             .filler(deadbeef)
             .wallet(wallet.clone())
             .on_http(anvil.endpoint().parse()?);

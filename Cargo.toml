@@ -1,6 +1,6 @@
 [package]
 name = "alloy-deadbeef"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Pawel Urbanek <contact@pawelurbanek.com>"]
 description = "Brute-force vanity tx prefixes using Alloy"
@@ -10,7 +10,7 @@ repository = "https://github.com/pawurb/alloy-deadbeef"
 
 [dependencies]
 
-alloy = { version = "0.6", features = ["full", "node-bindings", "json-rpc"] }
+alloy = { version = "0.11", features = ["full", "node-bindings", "json-rpc"] }
 eyre = "0.6.12"
 futures = "0.3.31"
 tokio = { version = "1.40.0", features = ["full"] }
