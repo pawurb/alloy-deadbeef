@@ -10,10 +10,14 @@ use alloy_deadbeef::{DeadbeefFiller, GWEI_I};
 use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
-    let account: Address = std::env::var("ACCOUNT").unwrap().parse()?;
-    let private_key: PrivateKeySigner = std::env::var("PRIVATE_KEY").unwrap().parse()?;
+    let account: Address = std::env::var("ACCOUNT")
+        .expect("ACCOUNT must be set")
+        .parse()?;
+    let private_key: PrivateKeySigner = std::env::var("PRIVATE_KEY")
+        .expect("PRIVATE_KEY must be set")
+        .parse()?;
     let wallet = EthereumWallet::from(private_key);
-    let endpoint = std::env::var("ETH_RPC").unwrap();
+    let endpoint = std::env::var("ETH_RPC").expect("ETH_RPC must be set");
 
     let provider = ProviderBuilder::new()
         .wallet(wallet.clone())
