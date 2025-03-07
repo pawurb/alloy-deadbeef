@@ -4,7 +4,7 @@ use alloy::{
     primitives::{keccak256, FixedBytes, U256},
     providers::{
         fillers::{FillerControlFlow, TxFiller},
-        Provider, SendableTx,
+        SendableTx,
     },
     rpc::types::{TransactionInput, TransactionRequest},
     transports::TransportResult,
@@ -63,7 +63,10 @@ pub enum TxFillable {
     Gas { gas: u64 },
 }
 
-impl<N: Network> TxFiller<N> for DeadbeefFiller {
+impl<N> TxFiller<N> for DeadbeefFiller
+where
+    N: Network,
+{
     type Fillable = TxFillable;
 
     fn status(&self, _tx: &<N as Network>::TransactionRequest) -> FillerControlFlow {
@@ -86,14 +89,11 @@ impl<N: Network> TxFiller<N> for DeadbeefFiller {
         Ok(tx)
     }
 
-    async fn prepare<P>(
+    async fn prepare<P, T>(
         &self,
         _provider: &P,
         tx: &<N as Network>::TransactionRequest,
-    ) -> TransportResult<Self::Fillable>
-    where
-        P: Provider<N>,
-    {
+    ) -> TransportResult<Self::Fillable> {
         let input = TransactionInput::new(tx.input().unwrap_or_default().clone());
         let rpc_tx = TransactionRequest {
             from: tx.from(),
