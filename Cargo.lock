@@ -151,7 +151,7 @@ dependencies = [
 
 [[package]]
 name = "alloy-deadbeef"
-version = "0.1.1-a7"
+version = "0.0.7"
 dependencies = [
  "alloy",
  "criterion",

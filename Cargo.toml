@@ -1,6 +1,6 @@
 [package]
 name = "alloy-deadbeef"
-version = "0.1.1-a7"
+version = "0.0.7"
 edition = "2021"
 authors = ["Pawel Urbanek <contact@pawelurbanek.com>"]
 description = "Brute-force vanity tx prefixes using Alloy"
